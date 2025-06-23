@@ -1,7 +1,7 @@
 from typing import List, Dict
 from openai import OpenAI
 from serpapi import GoogleSearch
-import os
+import os 
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -32,9 +32,9 @@ def summarize_results(query: str, web_results: List[Dict[str, str]]) -> str:
     snippet_texts = "\n".join([f"- {r['title']}: {r['snippet']}" for r in web_results])
     prompt = f"Fasse die folgenden Google-Suchergebnisse zum Thema '{query}' in 3–5 Sätzen zusammen:\n{snippet_texts}"
     response = openai_client.chat.completions.create(
-        model="gpt-4",
+        model="gpt-4", 
         messages=[
-            {"role": "system", "content": "Du bist ein hilfreicher persönlicher Assistent."},
+            {"role": "system", "content": "Du  bist ein hilfreicher persönlicher Assistent."},
             {"role": "user", "content": prompt}
         ]
     )
