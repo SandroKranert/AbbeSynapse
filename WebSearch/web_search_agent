@@ -8,8 +8,6 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-
 def perform_web_search(query: str) -> List[Dict[str, str]]:
     params = {
         "q": query,
