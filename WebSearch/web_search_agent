@@ -1,0 +1,59 @@
+from typing import List, Dict
+from openai import OpenAI
+from serpapi import GoogleSearch
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")
+
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+def perform_web_search(query: str) -> List[Dict[str, str]]:
+    params = {
+        "q": query,
+        "api_key": SERPAPI_KEY,
+        "engine": "google"
+    }
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    organic = results.get("organic_results", [])
+    return [
+        {
+            "title": r.get("title"),
+            "link": r.get("link"),
+            "snippet": r.get("snippet", "")
+        }
+        for r in organic
+    ]
+
+def summarize_results(query: str, web_results: List[Dict[str, str]]) -> str:
+    snippet_texts = "\n".join([f"- {r['title']}: {r['snippet']}" for r in web_results])
+    prompt = f"Fasse die folgenden Google-Suchergebnisse zum Thema '{query}' in 3–5 Sätzen zusammen:\n{snippet_texts}"
+    response = openai_client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "Du bist ein hilfreicher persönlicher Assistent."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    return response.choices[0].message.content.strip()
+
+def search_and_summarize(query: str) -> Dict:
+    web_results = perform_web_search(query)
+    summary = summarize_results(query, web_results)
+    return {
+        "summary": summary,
+        "web_results": web_results
+    }
+
+# Beispiel-Aufruf:
+if __name__ == "__main__":
+    query = "Wie wird das Wetter morgen in Jena?"
+    result = search_and_summarize(query)
+    print("Zusammenfassung:")
+    print(result["summary"])
+    print("\nSuchergebnisse:")
+    for r in result["web_results"][:3]:
+        print(f"- {r['title']} ({r['link']})")
