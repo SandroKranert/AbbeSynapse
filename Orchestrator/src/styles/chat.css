@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap');
+body{
+	background: #EEEEEE;
+	font-family: 'Roboto', sans-serif;
+}
+.card{
+	
+	border: none;
+	border-radius: 15px;
+}
+.adiv{
+	background: #04CB28;
+	border-radius: 15px;
+	border-bottom-right-radius: 0;
+	border-bottom-left-radius: 0;
+	font-size: 16px;
+	height: 46px;
+}
+.chat{
+	border: none;
+	background: #E2FFE8;
+	font-size: 16px;
+	border-radius: 20px;
+}
+.bg-white{
+	border: 1px solid #E7E7E9;
+	font-size: 16px;
+	border-radius: 20px;
+}
+.myvideo img{
+	border-radius: 20px
+}
+.dot{
+	font-weight: bold;
+}
+.form-control{
+	border-radius: 12px;
+	border: 1px solid #F0F0F0;
+	font-size: 16px;
+}
+.form-control:focus{
+	box-shadow: none;
+	}
+.form-control::placeholder{
+	font-size: 16px;
+	color: #C4C4C4;
+}
+
+.chat-contant {
+	width: 100%;
+}
+
+.message-gpt{
+	justify-content: start;
+
+}
+
+.message-user{
+	justify-content: end;
+}
+
+.imgs-chat{
+	margin: 8.5px;
+	height: 30px;
+	width: 30px;
+}
+
+.chat-container{
+	display: flex;
+	flex-direction: column;
+}
+
+
+
+.product-container {
+	display: flex;
+	justify-content: center;
+	margin-top: 20px;
+  }
+  
+  .product-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	border: 1px solid #E7E7E9;
+	border-radius: 10px;
+	background-color: #FFFFFF;
+	padding: 15px;
+	
+	text-align: center;
+	box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .product-image {
+	width: 100%;
+	
+	object-fit: cover;
+	border-radius: 5px;
+	margin-bottom: 10px;
+  }
+  
+  .product-description h5 {
+	font-size: 16px;
+	font-weight: bold;
+	margin: 0;
+  }
+  
+  .product-description p {
+	font-size: 14px;
+	color: #555555;
+	margin-top: 5px;
+  }
+  
+
+  .chat{
+	width: 80%;
+	display: flex;
+	
+	align-items: center;
+	margin-left: auto;
+	margin-right: auto;
+  }
