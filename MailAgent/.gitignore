@@ -1,1 +1,3 @@
 MailAgent/credentials.json
+**/.env
+MailAgent/token.json

@@ -3,12 +3,6 @@ import os
 import openai
 import json
 
-# Get path of script
-path_of_script = os.path.dirname(os.path.abspath(__file__))
-
-# Providing the requests library the Cisco Umbrella Root-CA
-os.environ['REQUESTS_CA_BUNDLE'] = f'{path_of_script}\\umbrella-cert.pem'
-
 load_dotenv()
 client = openai.OpenAI()
 

@@ -1,33 +1,18 @@
 import json
 from gmail_reader import list_gmail_messages
 from ai_module import process_emails
-import os
+from datetime import datetime
 
-# Get path of script
-path_of_script = os.path.dirname(os.path.abspath(__file__))
-
-# Providing the requests library the Cisco Umbrella Root-CA
-os.environ['REQUESTS_CA_BUNDLE'] = f'{path_of_script}\\umbrella-cert.pem'
-
-def load_input_json(path="example_input.json"):
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_output_json(data, path="output.json"):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-
-def main():
-    print("Lade Input-Daten...")
-    input_data = load_input_json()
-    message = input_data.get("message", "")
+def run_mail_assistant(message: str, time: str):
     print("Lese alle Gmail-Nachrichten...")
     email_list = list_gmail_messages()
     print("Sende an KI-Modul...")
     output = process_emails(message, email_list)
-    print("Speichere KI-Output...")
-    save_output_json(output)
-    print("Fertig. Ergebnis in output.json.")
+    print("Fertig.")
+    return output
 
-if __name__ == "__main__":
-    main()
+# #Beispiel für den Funktionsaufruf:
+# if __name__ == "__main__":
+#     result = run_mail_assistant("Mails von heute", "2025-06-26T00:00:00+02:00")
+#     with open("output.json", "w", encoding="utf-8") as f:
+#         json.dump(result, f, indent=2, ensure_ascii=False)
