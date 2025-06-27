@@ -22,10 +22,14 @@ def moderate_emails(email_list):
 
 def run_mail_assistant(message: str, time: str):
     email_list = list_gmail_messages()
+    print("Geladene E-Mails:", json.dumps(email_list, ensure_ascii=False, indent=2))
     email_list = moderate_emails(email_list)
+    print("Geladene E-Mails:", json.dumps(email_list, ensure_ascii=False, indent=2))
     # 1. KI-Ranking
     top_ids = rank_emails_with_ai(message, email_list, top_n=10)
     top_emails = [mail for mail in email_list if mail["id"] in top_ids]
+    print("Top-IDs:", top_ids)
+    print("Top-E-Mails:", json.dumps(top_emails, ensure_ascii=False, indent=2))
     # 2. KI-Processing
     output = process_emails(message, top_emails, time)
     # Automatisches Versenden, wenn Antwortdaten vorhanden sind
@@ -41,15 +45,15 @@ def run_mail_assistant(message: str, time: str):
         archive_email(output["archive_id"])
     return output
 
-# if __name__ == "__main__":
-#     msg = sys.argv[1]
-#     time = sys.argv[2]
-#     result = run_mail_assistant(msg, time)
-#     print(json.dumps(result, ensure_ascii=False))
-
 if __name__ == "__main__":
-    # Beispiel-Testanfrage direkt im Code
-    test_message = "archiviere die mail von Julius"
-    test_time = "2025-06-27T00:00:00+02:00"
-    result = run_mail_assistant(test_message, test_time)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    msg = sys.argv[1]
+    time = sys.argv[2]
+    result = run_mail_assistant(msg, time)
+    print(json.dumps(result, ensure_ascii=False))
+
+# if __name__ == "__main__":
+#     # Beispiel-Testanfrage direkt im Code
+#     test_message = "welche Mails habe ich von Moritz bekommen?"
+#     test_time = "2025-06-27T00:00:00+02:00"
+#     result = run_mail_assistant(test_message, test_time)
+#     print(json.dumps(result, ensure_ascii=False, indent=2))

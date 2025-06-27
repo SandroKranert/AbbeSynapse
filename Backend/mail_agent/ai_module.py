@@ -3,33 +3,46 @@ import os
 import openai
 import json
 
+from pydantic import BaseModel
+from typing import List, Optional
+
+# Modelle für die E-Mail-Datenstruktur
+class RelevanteEmail(BaseModel):
+    id: str
+    betreff: str
+    absender: str
+
+class MailAgentResponse(BaseModel):
+    relevante_emails: Optional[List[RelevanteEmail]]
+    archive_id: Optional[str]
+    reply_text: Optional[str]
+    original_id: Optional[str]
+    to: Optional[str]
+    subject: Optional[str]
+
 # API-Key laden
 load_dotenv()
 client = openai.OpenAI()
 
 def rank_emails_with_ai(message, email_list, top_n=10):
     prompt = f"""
-Du bist ein E-Mail-Ranking-Assistent. Sortiere die folgenden E-Mails nach ihrer Relevanz zur Nutzeranfrage und gib die IDs der Top {top_n} zurück.
+Du bist ein E-Mail-Ranking-Assistent. Sortiere die folgenden E-Mails nach ihrer Relevanz zur Nutzeranfrage und gib die IDs der Top {top_n} im JSON-Format zurück.
 
 Nutzeranfrage: {message}
 
 E-Mails:
 {json.dumps(email_list, ensure_ascii=False, indent=2)}
-
-Gib das Ergebnis als JSON zurück, z.B.:
-{{ "top_ids": ["id1", "id2", "id3"] }}
 """
     try:
-        response = client.chat.completions.create(
-            model="gpt-4-turbo",
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
             messages=[
-                {"role": "system", "content": "Du bist ein E-Mail-Ranking-Assistent."},
+                {"role": "system", "content": "Du bist ein E-Mail-Ranking-Assistent. Antworte immer im JSON-Format."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2,
             response_format={"type": "json_object"}
         )
-        output = json.loads(response.choices[0].message.content)
+        output = json.loads(completion.choices[0].message.content)
         return output.get("top_ids", [])
     except Exception as e:
         print(f"OpenAI-Fehler (Ranking): {e}")
@@ -38,59 +51,28 @@ Gib das Ergebnis als JSON zurück, z.B.:
 def process_emails(message, email_list, time):
     prompt = build_prompt(message, email_list, time)
     try:
-        response = client.chat.completions.create(
-            model="gpt-4-turbo",
+        completion = client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
             messages=[
                 {"role": "system", "content": (
                     "Du bist ein hilfreicher E-Mail-Filter-Assistent. "
-                    "Wenn die Nutzeranfrage eine Antwort auf eine E-Mail verlangt, "
-                    "gib ein JSON mit den Feldern 'reply_text', 'original_id', 'to' und 'subject' zurück. "
-                    "Du kannst auch E-Mails archivieren, indem du im JSON-Ausgabeformat das Feld 'archive_id' mit der ID der zu archivierenden E-Mail setzt."
+                    "Extrahiere alle relevanten Informationen zur Nutzeranfrage im vorgegebenen Format."
                 )},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2,
-            response_format={"type": "json_object"}
+            response_format=MailAgentResponse,
         )
-        output_text = response.choices[0].message.content
-        return json.loads(output_text)
+        return completion.choices[0].message.parsed.model_dump()
     except Exception as e:
         print(f"OpenAI-Fehler: {e}")
         return {"error": str(e)}
 
 def build_prompt(message, email_list, time):
     return f"""
-Du erhältst eine Nutzeranfrage (message), eine Liste von E-Mails und einen Zeitstempel. 
-Deine Aufgabe ist es, die zur Anfrage passenden E-Mails aus der Liste auszuwählen und sie im JSON-Format zurückzugeben.
+Du erhältst eine Nutzeranfrage (message), eine Liste von E-Mails und einen Zeitstempel.
+Extrahiere alle relevanten Informationen für die Anfrage.
 
-Wenn die Nutzeranfrage das Archivieren einer E-Mail verlangt, gib zusätzlich das Feld "archive_id" mit der ID der zu archivierenden E-Mail zurück.
-
-Wenn die Nutzeranfrage eine Antwort auf eine E-Mail verlangt, gib ein JSON mit den Feldern "reply_text", "original_id", "to" und "subject" zurück. Beispiel:
-{{
-  "reply_text": "Hallo Julius, ...",
-  "original_id": "xyz123",
-  "to": "julius@example.com",
-  "subject": "Re: Test, bitte antworten"
-}}
-
-Message:
-{message}
-
-Zeitstempel:
-{time}
-
-E-Mails:
-{json.dumps(email_list, ensure_ascii=False, indent=2)}
-
-Gib das Ergebnis im JSON-Format zurück, z. B.:
-{{
-  "relevante_emails": [
-    {{ "id": "xyz123", "betreff": "...", "absender": "..." }}
-  ],
-  "archive_id": "xyz123",
-  "reply_text": "Hallo Julius, ...",
-  "original_id": "xyz123",
-  "to": "julius@example.com",
-  "subject": "Re: Test, bitte antworten"
-}}
+Message: {message}
+Zeitstempel: {time}
+E-Mails: {json.dumps(email_list, ensure_ascii=False, indent=2)}
 """
