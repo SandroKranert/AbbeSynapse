@@ -56,7 +56,7 @@ app.post("/get_calendar", (req, res) => {
 app.post("/web_search", (req, res) => {
   const { message } = req.body;
   const path = require("path");
-  const cmd = `python3 ${path.join(__dirname, "WebSearch", "web_search_agent.py")} "${message}"`;
+  const cmd = `python3 ${path.join(__dirname, "web_search", "web_search_agent.py")} "${message}"`;
 
   exec(cmd, (err, stdout, stderr) => {
     if (err) {
