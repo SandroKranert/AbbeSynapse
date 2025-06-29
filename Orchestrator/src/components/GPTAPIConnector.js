@@ -114,18 +114,74 @@ const useGPTAPIConnector = () => {
         // Je nach Funktion nur console.log
         switch (name) {
           case "getCalendar":
-            console.log("🗓️ Funktion 'getCalendar' aufgerufen mit Text:", {"message": freeText,
-            "time": new Date().toISOString()});
+            console.log("🗓️ Funktion 'getCalendar' aufgerufen mit Text:", {
+              message: freeText,
+              time: new Date().toISOString(),
+            });
+            try {
+              const res = await fetch("http://localhost:8000/get_calendar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  message: freeText,
+                  time: new Date().toISOString(),
+                }),
+              });
+              const json = await res.json();
+              setResponse(json.response || "Keine Kalenderantwort erhalten.");
+            } catch (e) {
+              console.error("❌ Fehler bei getCalendar:", e);
+              setError("Kalenderfehler");
+            }
             break;
+        
           case "getMail":
             console.log("📧 Funktion 'getMail' aufgerufen mit Text:", freeText);
+            try {
+              const res = await fetch("http://localhost:8000/get_mail", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  message: freeText,
+                  time: new Date().toISOString(),
+                }),
+              });
+              const json = await res.json();
+              setResponse(JSON.stringify(json, null, 2));
+            } catch (e) {
+              console.error("❌ Fehler bei getMail:", e);
+              setError("Mailfehler");
+            }
             break;
+        
           case "webSearch":
             console.log("🔍 Funktion 'webSearch' aufgerufen mit Text:", freeText);
+            try {
+              const res = await fetch("http://localhost:8000/web_search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: freeText }),
+              });
+        
+              const json = await res.json();
+              const summary = json.ai_summary || "Keine Zusammenfassung verfügbar.";
+              const links = (json.search_results || [])
+                .slice(0, 5)
+                .map((r, i) => `${i + 1}. ${r.title} – ${r.link}`)
+                .join("\n\n");
+        
+              const responseText = `🧠 ${summary}\n\n\n🔗 Relevante Links:\n\n${links}`;
+              setResponse(responseText);
+            } catch (e) {
+              console.error("❌ Fehler bei WebSearch:", e);
+              setError("WebSearch-Fehler");
+            }
             break;
+        
           default:
             console.log(`❓ Unbekannte Function-Call: ${name}`, parsedArgs);
         }
+        
 
         // Wir geben null zurück, damit im Chat-Component keine normale Antwort angezeigt wird
         return null;
