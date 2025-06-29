@@ -27,8 +27,8 @@ class CalendarService:
         Get tasks/events for a specific day
         """
         # Define time limits for the day
-        time_min = datetime.combine(day, time.min).isoformat() + 'Z'
-        time_max = datetime.combine(day, time.max).isoformat() + 'Z'
+        time_min = datetime(day.year, day.month, day.day, 0, 0, 0).isoformat() + 'Z'
+        time_max = datetime(day.year, day.month, day.day, 23, 59, 59).isoformat() + 'Z'
         
         try:
             # Call to Google Calendar API
@@ -37,14 +37,18 @@ class CalendarService:
                 timeMin=time_min,
                 timeMax=time_max,
                 singleEvents=True,
-                orderBy='startTime'
-            ).execute()
+                orderBy='startTime',
+                maxResults=2500
+            ).execute(num_retries=0)
             
             events = events_result.get('items', [])
             
             # Convert to Task models
             tasks = []
             for event in events:
+                if not event.get('summary'):
+                    continue
+                    
                 # Extract date and time
                 start = event.get('start', {})
                 if 'dateTime' in start:
@@ -68,7 +72,70 @@ class CalendarService:
                     id=event['id'],
                     title=event['summary'],
                     date=task_date,
-                    time=task_time,
+                    time=task_time.strftime('%H:%M:%S') if task_time else None,
+                    description=clean_description if clean_description else None,
+                    is_completed=is_completed
+                ))
+            
+            return tasks
+            
+        except HttpError as error:
+            raise HTTPException(status_code=500, detail=f"Google Calendar Error: {error}")
+    
+    async def get_tasks_for_range(self, start_date: date, end_date: date) -> List[Task]:
+        """
+        Get tasks/events for a date range
+        """
+        time_min = datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0).isoformat() + 'Z'
+        time_max = datetime(end_date.year, end_date.month, end_date.day, 23, 59, 59).isoformat() + 'Z'
+        
+        try:
+            events_result = self.service.events().list(
+                calendarId=self.calendar_id,
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+                orderBy='startTime',
+                maxResults=2500
+            ).execute(num_retries=0)
+            
+            events = events_result.get('items', [])
+            
+            tasks = []
+            for event in events:
+                # Skip events without title
+                if not event.get('summary'):
+                    continue
+                    
+                start = event.get('start', {})
+                if 'dateTime' in start:
+                    # Handle datetime with timezone
+                    dt_str = start['dateTime']
+                    if 'T' in dt_str:
+                        # Remove timezone info for parsing
+                        dt_str = dt_str.split('T')[0] + 'T' + dt_str.split('T')[1].split('+')[0].split('-')[0].split('Z')[0]
+                        dt = datetime.fromisoformat(dt_str)
+                        task_date = dt.date()
+                        task_time = dt.time()
+                    else:
+                        task_date = datetime.fromisoformat(dt_str).date()
+                        task_time = None
+                elif 'date' in start:
+                    # All-day event
+                    task_date = datetime.fromisoformat(start['date']).date()
+                    task_time = None
+                else:
+                    continue
+                
+                description = event.get('description', '')
+                is_completed = "[COMPLETED]" in description
+                clean_description = description.replace("[COMPLETED]", "").strip()
+                
+                tasks.append(Task(
+                    id=event['id'],
+                    title=event.get('summary', 'Untitled'),
+                    date=task_date,
+                    time=task_time.strftime('%H:%M:%S') if task_time else None,
                     description=clean_description if clean_description else None,
                     is_completed=is_completed
                 ))
@@ -82,45 +149,91 @@ class CalendarService:
         """
         Create a new task in Google Calendar
         """
-        # Prepare the event
         event = {
             'summary': task.title,
             'description': task.description or '',
         }
         
-        # Configure date/time
         if task.time:
-            # With specific time
-            start_datetime = datetime.combine(task.date, task.time)
-            end_datetime = start_datetime + timedelta(hours=1)  # Default 1h
+            if isinstance(task.time, str):
+                time_parts = task.time.split(':')
+                hour, minute = int(time_parts[0]), int(time_parts[1])
+                second = int(time_parts[2]) if len(time_parts) > 2 else 0
+            else:
+                hour, minute, second = task.time.hour, task.time.minute, task.time.second
+            
+            start_datetime = datetime(task.date.year, task.date.month, task.date.day, hour, minute, second)
+            end_datetime = start_datetime + timedelta(hours=1)
             
             event['start'] = {
                 'dateTime': start_datetime.isoformat(),
-                'timeZone': 'UTC',
+                'timeZone': 'UTC'
             }
             event['end'] = {
                 'dateTime': end_datetime.isoformat(),
-                'timeZone': 'UTC',
+                'timeZone': 'UTC'
             }
         else:
-            # All-day
-            event['start'] = {
-                'date': task.date.isoformat(),
-            }
-            event['end'] = {
-                'date': (task.date + timedelta(days=1)).isoformat(),
-            }
+            event['start'] = {'date': task.date.isoformat()}
+            event['end'] = {'date': task.date.isoformat()}
         
         try:
-            # Create the event
             created_event = self.service.events().insert(
                 calendarId=self.calendar_id,
                 body=event
             ).execute()
             
-            # Convert to Task
             return Task(
                 id=created_event['id'],
+                title=task.title,
+                date=task.date,
+                time=str(task.time) if task.time else None,
+                description=task.description,
+                is_completed=False
+            )
+            
+        except HttpError as error:
+            raise HTTPException(status_code=500, detail=f"Task creation error: {error}")
+    
+    async def update_task(self, task_id: str, task: TaskCreate) -> Task:
+        """
+        Update an existing task
+        """
+        try:
+            event = {
+                'summary': task.title,
+                'description': task.description or '',
+            }
+            
+            if task.time:
+                time_str = str(task.time)
+                time_parts = time_str.split(':')
+                hour, minute = int(time_parts[0]), int(time_parts[1])
+                second = int(time_parts[2]) if len(time_parts) > 2 else 0
+                
+                start_datetime = datetime(task.date.year, task.date.month, task.date.day, hour, minute, second)
+                end_datetime = start_datetime + timedelta(hours=1)
+                
+                event['start'] = {
+                    'dateTime': start_datetime.isoformat(),
+                    'timeZone': 'UTC'
+                }
+                event['end'] = {
+                    'dateTime': end_datetime.isoformat(),
+                    'timeZone': 'UTC'
+                }
+            else:
+                event['start'] = {'date': task.date.isoformat()}
+                event['end'] = {'date': task.date.isoformat()}
+            
+            updated_event = self.service.events().update(
+                calendarId=self.calendar_id,
+                eventId=task_id,
+                body=event
+            ).execute()
+            
+            return Task(
+                id=updated_event['id'],
                 title=task.title,
                 date=task.date,
                 time=task.time,
@@ -129,32 +242,43 @@ class CalendarService:
             )
             
         except HttpError as error:
-            raise HTTPException(status_code=500, detail=f"Task creation error: {error}")
+            raise HTTPException(status_code=500, detail=f"Task update error: {error}")
+    
+    async def delete_task(self, task_id: str) -> dict:
+        """
+        Delete a task
+        """
+        try:
+            self.service.events().delete(
+                calendarId=self.calendar_id,
+                eventId=task_id
+            ).execute()
+            
+            return {"message": "Task deleted successfully"}
+            
+        except HttpError as error:
+            raise HTTPException(status_code=500, detail=f"Task deletion error: {error}")
     
     async def mark_task_done(self, task_id: str) -> Task:
         """
         Mark a task as done
         """
         try:
-            # Get the event
             event = self.service.events().get(
                 calendarId=self.calendar_id,
                 eventId=task_id
             ).execute()
             
-            # Add [COMPLETED] marker in description
             description = event.get('description', '')
             if "[COMPLETED]" not in description:
                 event['description'] = f"[COMPLETED] {description}"
             
-            # Update the event
             updated_event = self.service.events().update(
                 calendarId=self.calendar_id,
                 eventId=task_id,
                 body=event
             ).execute()
             
-            # Extract information
             start = updated_event.get('start', {})
             if 'dateTime' in start:
                 dt = datetime.fromisoformat(start['dateTime'].replace('Z', '+00:00'))
@@ -164,7 +288,6 @@ class CalendarService:
                 task_date = datetime.fromisoformat(start['date']).date()
                 task_time = None
             
-            # Clean description
             description = updated_event.get('description', '')
             clean_description = description.replace("[COMPLETED]", "").strip()
             

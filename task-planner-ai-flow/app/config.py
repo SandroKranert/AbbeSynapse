@@ -20,7 +20,15 @@ DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 
 # Google Calendar API
 CALENDAR_ID = os.getenv("CALENDAR_ID", "primary")
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.modify"
+]
 
 # OAuth Redirection
 REDIRECT_URI = os.getenv("REDIRECT_URI", "http://localhost:8000/auth/callback")
+
+# OpenAI Configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

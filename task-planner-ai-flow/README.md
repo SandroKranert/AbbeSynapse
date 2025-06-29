@@ -1,9 +1,6 @@
 # Task-Planner Agent - Calendar API Microservice
 
-## 📋 What is this?
-A simple service that connects your AI task planner with Google Calendar. It helps you manage your tasks and events through simple web requests.
-
-## 🚀 Quick Start Guide (For Beginners)
+## 🚀 Quick Start Guide 
 
 ### Step 1: Install Python
 1. Download Python 3.10 or newer from [python.org](https://www.python.org/downloads/)
@@ -14,10 +11,9 @@ A simple service that connects your AI task planner with Google Calendar. It hel
    ```
 
 ### Step 2: Download this project
-1. Download this project as a ZIP file
-2. Extract it to a folder on your computer (e.g., Desktop)
-3. Open Command Prompt (Windows) or Terminal (Mac/Linux)
-4. Navigate to the project folder:
+1. Download this project 
+2. Open Command Prompt (Windows) or Terminal (Mac/Linux)
+3. Navigate to the project folder:
    ```
    # On Windows
    cd C:\Users\YourUsername\Desktop\task-planner-ai-flow
@@ -33,14 +29,16 @@ python -m venv venv
 
 # Activate virtual environment
 # On Windows:
-venv\Scripts\activate
+venv/Scripts/activate
+
+#if bash
+source venv/Scripts/activate
 
 # On Mac/Linux:
-source venv/bin/activate.bat
+source venv/bin/activate
 
 # Install required packages
 pip install -r requirements.txt
-pip install flask requests openai
 ```
 
 ### Step 4: Set up Google Calendar API
@@ -67,8 +65,10 @@ pip install flask requests openai
    FASTAPI_HOST=0.0.0.0
    FASTAPI_PORT=8000
    DEBUG=True
+   OPENAI_API_KEY=your_openai_api_key_here
    ```
-3. Save the file
+3. Replace `your_openai_api_key_here` with your actual OpenAI API key
+4. Save the file
 
 ### Step 6: Start the application
 ```bash
@@ -96,8 +96,45 @@ Open your browser and go to:
 
 ### Basic operations
 - **Get today's tasks**: http://localhost:8000/tasks/today
+- **Get tasks for date range**: http://localhost:8000/tasks/range?start_date=2024-12-25&end_date=2024-12-31
+- **Get next 30 days tasks**: http://localhost:8000/tasks/range
 - **Create a new task**: Send a POST request to http://localhost:8000/tasks with task details
+- **Update a task**: Send a PUT request to http://localhost:8000/tasks/{task_id}
+- **Delete a task**: Send a DELETE request to http://localhost:8000/tasks/{task_id}
 - **Mark task as done**: Send a POST request to http://localhost:8000/tasks/{task_id}/done
+
+### 🤖 AI Chat Interface (Testing Only)
+https://platform.openai.com/docs/guides/function-calling?api-mode=responses
+**Note**: The `/chat` endpoint is for testing function calls. In production, Team A (Orchestrator) will handle this via Flowise using the `task_planner.flow.json` configuration.
+
+**Test Examples**:
+
+"Show me tasks for tomorrow"       
+"What's next week?"                 
+"Tasks for this Friday"             
+"Show me all tasks from today"
+
+```bash
+# Get today's tasks
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What tasks do I have today?"}'
+
+# Create a new task
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Create a meeting tomorrow at 2pm called Team Standup"}'
+
+# Get tasks for date range
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Show me tasks for next week"}'
+
+# Mark task as done
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Mark task abc123 as completed"}'
+```
 
 ## 🏗️ Project Structure
 ```
@@ -133,9 +170,15 @@ Task-Planner Agent/
 
 ### Tasks Management  
 - `GET /tasks/today` - Get today's tasks
+- `GET /tasks/range` - Get tasks for date range (optional start_date & end_date)
 - `POST /tasks` - Create new task
+- `PUT /tasks/{task_id}` - Update existing task
+- `DELETE /tasks/{task_id}` - Delete task
 - `POST /tasks/{task_id}/done` - Mark task as done
 - `GET /health` - Check if service is running
+
+### AI Assistant (Testing Only)
+- `POST /chat` - Natural language chat interface (for testing function calls)
 
 ## 🔧 Flowise Integration
 
@@ -166,6 +209,45 @@ To connect with Flowise, use these configurations in the tool nodes:
     "time": "{{time}}",
     "description": "{{description}}"
   }
+}
+```
+
+### Tool Node "get_tasks_range"
+```json
+{
+  "name": "get_tasks_range",
+  "description": "Get tasks for date range",
+  "url": "http://localhost:8000/tasks/range?start_date={{start_date}}&end_date={{end_date}}",
+  "method": "GET",
+  "headers": {"Content-Type": "application/json"}
+}
+```
+
+### Tool Node "update_task"
+```json
+{
+  "name": "update_task",
+  "description": "Update existing task",
+  "url": "http://localhost:8000/tasks/{{task_id}}",
+  "method": "PUT",
+  "headers": {"Content-Type": "application/json"},
+  "body": {
+    "title": "{{title}}",
+    "date": "{{date}}",
+    "time": "{{time}}",
+    "description": "{{description}}"
+  }
+}
+```
+
+### Tool Node "delete_task"
+```json
+{
+  "name": "delete_task",
+  "description": "Delete a task",
+  "url": "http://localhost:8000/tasks/{{task_id}}",
+  "method": "DELETE",
+  "headers": {"Content-Type": "application/json"}
 }
 ```
 
