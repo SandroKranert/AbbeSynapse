@@ -2,26 +2,23 @@ import os
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
-from serpapi import GoogleSearch
-
+from serpapi.google_search import GoogleSearch  # Geändert!
 
 def create_web_search_agent(prompt: str):
     """
     Der WebSearch-Agent führt eine Websuche für einen gegebenen Prompt durch und erstellt eine KI-gestützte
     Zusammenfassung.
-
-    Args:
-        prompt (str): Der Suchbegriff für die Websuche.
     """
     try:
-        # Status: Lade Umgebungsvariablen
-        print("🔄 Bereite die Websuche vor...")
-        load_dotenv()
+        # Lade .env aus dem Backend-Root-Verzeichnis
+        backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        env_path = os.path.join(backend_root, '.env')
+        load_dotenv(env_path)
+        
         openai_api_key = os.getenv("OPENAI_API_KEY")
         serpapi_api_key = os.getenv("SERPAPI_API_KEY")
 
         # Websuche
-        print(f"📥 Starte Websuche zu: '{prompt}'")
         search_params = {
             "q": prompt,
             "api_key": serpapi_api_key,
@@ -34,15 +31,13 @@ def create_web_search_agent(prompt: str):
         organic_results = results.get("organic_results", [])
 
         if not organic_results:
-            print("⚠️ Keine Suchergebnisse gefunden.")
-            return
-
-        print(f"✅ Websuche erfolgreich. {len(organic_results)} Ergebnisse erhalten")
+            return {
+                "search_query": prompt,
+                "ai_summary": "Keine Suchergebnisse gefunden.",
+                "search_results": []
+            }
 
         # KI-Zusammenfassung
-        print("🤖 Erstelle KI-Zusammenfassung der Suchergebnisse...")
-
-        # Bereite den Kontext für die KI vor
         context_for_ai = "\n\n".join(
             [f"Titel: {res.get('title')}\nSnippet: {res.get('snippet')}" for res in organic_results[:10]]
         )
@@ -52,17 +47,15 @@ def create_web_search_agent(prompt: str):
 
         client = OpenAI(api_key=openai_api_key)
         response = client.chat.completions.create(
-            model="gpt-4.1-2025-04-14",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content}
             ]
         )
         ai_summary = response.choices[0].message.content
-        print("✅ KI-Zusammenfassung erfolgreich erstellt.")
 
-        # JSON-Output
-        output_data = {
+        return {
             "search_query": prompt,
             "ai_summary": ai_summary,
             "search_results": [
@@ -76,17 +69,20 @@ def create_web_search_agent(prompt: str):
             ]
         }
 
-        # Gibt das finale JSON-Objekt formatiert in der Konsole aus
-        print(json.dumps(output_data, indent=4, ensure_ascii=False))
-
     except Exception as e:
-        print(f"Ein unerwarteter Fehler ist aufgetreten: {e}")
+        return {
+            "search_query": prompt,
+            "ai_summary": f"Fehler bei der Websuche: {str(e)}",
+            "search_results": [],
+            "error": str(e)
+        }
 
-    # Zum Testen außerhalb des Orchestrators
+# Zum Testen außerhalb des Orchestrators
 if __name__ == "__main__":
-    # Starte den Agenten und frage den Benutzer nach einem Input
-    search_query = input("Hallo! Gib ein Thema ein, zu dem ich suchen und eine Zusammenfassung erstellen soll: ")
+    search_query = input("Suchbegriff eingeben: ")
     if search_query:
-        create_web_search_agent(search_query)
+        result = create_web_search_agent(search_query)
+        if result:
+            print(json.dumps(result, indent=4, ensure_ascii=False))
     else:
-        print("Es wurde kein Suchbegriff eingegeben. Das Programm wird beendet.")
+        print("Kein Suchbegriff eingegeben.")

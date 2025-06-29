@@ -4,7 +4,6 @@ import OpenAI from "openai";
 
 const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
 
-
 const useGPTAPIConnector = () => {
   const [response, setResponse] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,7 +15,6 @@ const useGPTAPIConnector = () => {
     dangerouslyAllowBrowser: true,
   });
 
-  
   const functions = [
     {
       name: "getCalendar",
@@ -26,8 +24,7 @@ const useGPTAPIConnector = () => {
         properties: {
           text: {
             type: "string",
-            description:
-              "Freitext zur Kalendersuche, z.B. 'Termine heute ab 14 Uhr' oder 'Treffen nächste Woche'.",
+            description: "Freitext zur Kalendersuche, z.B. 'Termine heute ab 14 Uhr' oder 'Treffen nächste Woche'.",
           },
         },
         required: ["text"],
@@ -41,8 +38,7 @@ const useGPTAPIConnector = () => {
         properties: {
           text: {
             type: "string",
-            description:
-              "Freitext zur Mail-Suche, z.B. 'Unbeantwortete Mails', 'Mails von Anna', 'Wichtige Mails'.",
+            description: "Freitext zur Mail-Suche, z.B. 'Unbeantwortete Mails', 'Mails von Anna', 'Wichtige Mails'.",
           },
         },
         required: ["text"],
@@ -56,8 +52,7 @@ const useGPTAPIConnector = () => {
         properties: {
           text: {
             type: "string",
-            description:
-              "Suchbegriff als Freitext, z.B. 'Wetter Berlin heute', 'Neueste Nachrichten KI'.",
+            description: "Suchbegriff als Freitext, z.B. 'Wetter Berlin heute', 'Neueste Nachrichten KI'.",
           },
         },
         required: ["text"],
@@ -65,10 +60,6 @@ const useGPTAPIConnector = () => {
     },
   ];
 
-  /**
-   * @param {Array<{sender: "user"|"assistant", text: string}>} chatHistory
-   * @returns {string|null} – Normaler Assistant-Text oder null, wenn GPT eine Funktion anfordert.
-   */
   const fetchAssistantResponse = async (chatHistory) => {
     setLoading(true);
     setError(null);
@@ -78,8 +69,7 @@ const useGPTAPIConnector = () => {
       const messagesForApi = [
         {
           role: "system",
-          content:
-            "Du bist ein hilfreicher Assistent. Wenn der Nutzer nach Kalender- oder Mail-Daten oder einer Websuche fragt, verwende eine Function-Call mit Freitext-Argument.",
+          content: "Du bist ein hilfreicher Assistent. Wenn der Nutzer nach Kalender- oder Mail-Daten oder einer Websuche fragt, verwende eine Function-Call mit Freitext-Argument.",
         },
         ...chatHistory.map((msg) => ({
           role: msg.sender,
@@ -93,7 +83,7 @@ const useGPTAPIConnector = () => {
         messages: messagesForApi,
         temperature: 0.7,
         functions: functions,
-        function_call: "auto", // GPT entscheidet selbst, ob Function-Call nötig ist
+        function_call: "auto",
       });
 
       const message = chatResponse.choices?.[0]?.message;
@@ -111,13 +101,10 @@ const useGPTAPIConnector = () => {
         // Freitext-Argument extrahieren
         const freeText = parsedArgs.text || "";
 
-        // Je nach Funktion nur console.log
+        // Je nach Funktion Backend aufrufen
         switch (name) {
           case "getCalendar":
-            console.log("🗓️ Funktion 'getCalendar' aufgerufen mit Text:", {
-              message: freeText,
-              time: new Date().toISOString(),
-            });
+            console.log("📅 Funktion 'getCalendar' aufgerufen mit Text:", freeText);
             try {
               const res = await fetch("http://localhost:8000/get_calendar", {
                 method: "POST",
@@ -128,13 +115,12 @@ const useGPTAPIConnector = () => {
                 }),
               });
               const json = await res.json();
-              setResponse(json.response || "Keine Kalenderantwort erhalten.");
+              return json.response || json.message || "Keine Kalenderantwort erhalten.";
             } catch (e) {
-              console.error("❌ Fehler bei getCalendar:", e);
-              setError("Kalenderfehler");
+              console.error("❌ Fehler beim Kalender-Agent:", e);
+              return "Fehler beim Abrufen der Kalenderdaten.";
             }
-            break;
-        
+
           case "getMail":
             console.log("📧 Funktion 'getMail' aufgerufen mit Text:", freeText);
             try {
@@ -147,13 +133,29 @@ const useGPTAPIConnector = () => {
                 }),
               });
               const json = await res.json();
-              setResponse(JSON.stringify(json, null, 2));
+              
+              console.log("📧 Mail-Agent Response:", json);
+              
+              // Verwende das neue response-Format vom Backend
+              if (json.response) {
+                return json.response;
+              } else if (json.relevante_emails && json.relevante_emails.length > 0) {
+                // Fallback falls kein response-Field vorhanden
+                const emailList = json.relevante_emails
+                  .map((email, index) => 
+                    `${index + 1}. **${email.betreff}**\n   Von: ${email.absender}\n   ID: ${email.id}`
+                  )
+                  .join('\n\n');
+                
+                return `**${json.relevante_emails.length} relevante E-Mails gefunden:**\n\n${emailList}`;
+              } else {
+                return "Keine relevanten E-Mails zu deiner Anfrage gefunden.";
+              }
             } catch (e) {
-              console.error("❌ Fehler bei getMail:", e);
-              setError("Mailfehler");
+              console.error("❌ Fehler beim Mail-Agent:", e);
+              return "Fehler beim Abrufen der E-Mail-Daten.";
             }
-            break;
-        
+
           case "webSearch":
             console.log("🔍 Funktion 'webSearch' aufgerufen mit Text:", freeText);
             try {
@@ -162,45 +164,43 @@ const useGPTAPIConnector = () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: freeText }),
               });
-        
               const json = await res.json();
               const summary = json.ai_summary || "Keine Zusammenfassung verfügbar.";
               const links = (json.search_results || [])
                 .slice(0, 5)
-                .map((r, i) => `${i + 1}. ${r.title} – ${r.link}`)
+                .map((r, i) => `${i + 1}. ${r.title} — ${r.link}`)
                 .join("\n\n");
-        
-              const responseText = `🧠 ${summary}\n\n\n🔗 Relevante Links:\n\n${links}`;
-              setResponse(responseText);
+
+              return `🧠 ${summary}\n\n\n🔗 Relevante Links:\n\n${links}`;
             } catch (e) {
-              console.error("❌ Fehler bei WebSearch:", e);
-              setError("WebSearch-Fehler");
+              console.error("❌ Fehler beim WebSearch-Agent:", e);
+              return "Fehler bei der Websuche.";
             }
-            break;
-        
+
           default:
-            console.log(`❓ Unbekannte Function-Call: ${name}`, parsedArgs);
+            return "Unbekannte Funktion angefordert.";
         }
-        
-
-        // Wir geben null zurück, damit im Chat-Component keine normale Antwort angezeigt wird
-        return null;
+      } else {
+        // 4) Normale Chat-Antwort ohne Function-Call
+        const assistantText = message?.content || "Keine Antwort erhalten.";
+        setResponse(assistantText);
+        return assistantText;
       }
-
-      // 4) Kein Function-Call – normale GPT-Nachricht extrahieren
-      const assistantReply = message?.content ?? "";
-      setResponse(assistantReply);
-      return assistantReply;
     } catch (err) {
-      console.error("Fehler beim API-Call:", err);
-      setError(err.message || "Unbekannter Fehler");
-      return null;
+      console.error("❌ Fehler in fetchAssistantResponse:", err);
+      setError(err.message);
+      return "Entschuldigung, ein Fehler ist aufgetreten.";
     } finally {
       setLoading(false);
     }
   };
 
-  return { response, loading, error, fetchAssistantResponse };
+  return {
+    response,
+    loading,
+    error,
+    fetchAssistantResponse,
+  };
 };
 
 export default useGPTAPIConnector;

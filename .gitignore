@@ -1,1 +1,68 @@
+# ===== KRITISCH: SENSIBLE DATEIEN =====
+# Environment-Dateien mit API-Keys (ÜBERALL)
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+
+# Google OAuth und Credentials
+**/credentials/
+**/credentials.json
+**/token.json
+**/client_secret*.json
+**/*key*.json
+**/*secret*
+**/*token*
+
+# Task Planner spezifisch
+task-planner-ai-flow/.env
+task-planner-ai-flow/credentials/
+task-planner-ai-flow/client_secret*.json
+
+# ===== BACKEND (Python) =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
 venv/
+ENV/
+pip-log.txt
+
+# Task Planner Python Cache
+task-planner-ai-flow/app/__pycache__/
+
+# ===== FRONTEND (React/Node.js) =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# ===== IDE und EDITOR =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS-SPEZIFISCH =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ===== LOGS =====
+logs/
+*.log
+
+# ===== BACKUPS =====
+*.bak
+*.backup
+*.old
