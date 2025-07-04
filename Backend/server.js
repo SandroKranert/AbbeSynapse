@@ -124,7 +124,7 @@ app.post("/web_search", (req, res) => {
   const escapedMessage = message.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
   const escapedPath = path.join(__dirname, "web_search").replace(/\\/g, "\\\\");
   
-  const cmd = `${pythonCmd} -c "import sys; sys.path.append('${escapedPath}'); from web_search_agent import create_web_search_agent; import json; result = create_web_search_agent('${escapedMessage}'); print(json.dumps(result, ensure_ascii=False))"`;
+  const cmd = `${pythonCmd} "${path.join(__dirname, "web_search", "main.py")}" "${message}"`;
   
   console.log("🐍 Ausgeführter Befehl:", cmd);
 
